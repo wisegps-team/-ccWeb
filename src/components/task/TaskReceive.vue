@@ -1,22 +1,36 @@
 <template>
-  <a-row>
-    <a-col :span="24" class="taskReceiveTable">
-      <a-table :columns="columns" :dataSource="data" bordered :pagination="pagination">
-        <span slot="name" slot-scope="text, record,index">
-          <a class="font-blue">{{ text }}</a>
-        </span>
-        <div slot="action" slot-scope="text, record,index">
-          <a class="font-blue" style="margin-right:5px">讨论</a>
-          <a class="font-blue" style="margin-right:5px">审核</a>
-          <a class="font-blue" style="margin-right:5px">纪要</a>
-          <a class="font-blue" style="margin-right:5px">项目</a>
-        </div>
-      </a-table>
-    </a-col>
-  </a-row>
+  <div class="taskReceive">
+    <a-row>
+      <a-col :span="24" class="taskReceiveTable">
+        <a-table :columns="columns" :dataSource="current" bordered :pagination="pagination">
+          <span slot="name" slot-scope="text, record,index">
+            <a class="font-blue">{{ text }}</a>
+          </span>
+          <div slot="checkFile" slot-scope="text, record,index">
+            <a class="font-blue" style="margin-right:5px">查看</a>
+          </div>
+          <div slot="action" slot-scope="text,record,index">
+            <a v-if="(record.type===0||record.type===1)&&record.status===1" class="font-blue" style="margin-right:5px" @click="acceptTask(record)">接受</a>
+            <a v-if="(record.type===0||record.type===1)&&record.status===1" class="font-blue" style="margin-right:5px" @click="rejectTask(record)">拒绝</a>
+            <a v-if="record.status===2&&record.status===4" class="font-blue" style="margin-right:5px" @click="commentTask(record)">讨论</a>
+            <a v-if="(record.type===0||record.type===1)&&record.status===2" class="font-blue" style="margin-right:5px" @click="submitTask(record)">提交</a>
+            <a v-if="(record.type===0||record.type===1)&&record.status > 2" class="font-blue" style="margin-right:5px" @click="finishTask(record)">完成</a>
+            <a v-if="(record.type===2||record.type===3)&&record.status===4" class="font-blue" style="margin-right:5px" @click="reviewTask(record)">审核</a>
+            <a v-if="(record.type===2||record.type===3)&&record.status===4" class="font-blue" style="margin-right:5px" @click="taskRemark(record)">纪要</a>
+            <a class="font-blue" style="margin-right:5px" @click="goProject(record)">项目</a>
+          </div>
+        </a-table>
+      </a-col>
+    </a-row>
+    <TaskSubmit inititle="提交审核" :initvisibled="openSubmit" @submitSave="submitSave" @submitCancel="submitCancel"/>
+    <TaskReview inititle="审核" :initvisibled="openReview" @reviewSave="reviewSave" @reviewCancel="reviewCancel" :currentTask="currentTask"/>
+  </div>
 </template>
 <script>
 import gql from 'graphql-tag'
+import TaskSubmit from '@/components/dialog/task/TaskSubmitDialog'
+import TaskReview from '@/components/dialog/task/TaskReviewDialog'
+import moment from 'moment'
 
 const columns = [
   {
@@ -24,40 +38,46 @@ const columns = [
     width: 200,
     align: 'center',
     key: 'name',
-    dataIndex: 'name',
-    scopedSlots: { customRender: 'name' }
+    dataIndex: 'name'
   },
   {
     title: '发起人',
     width: 80,
     align: 'center',
     key: 'createdBy',
-    dataIndex: 'createdBy',
-    scopedSlots: { customRender: 'createdBy' }
+    dataIndex: 'createdBy.name'
   },
   {
     title: '负责人',
     width: 80,
     align: 'center',
     key: 'handler',
-    dataIndex: 'handler',
-    scopedSlots: { customRender: 'handler' }
+    dataIndex: 'handler.name'
   },
   {
     title: '文件',
     width: 80,
     align: 'center',
-    key: 'file',
-    dataIndex: 'file',
-    scopedSlots: { customRender: 'file' }
+    key: 'id',
+    dataIndex: 'id',
+    scopedSlots: { customRender: 'checkFile' }
   },
   {
     title: '截止日期',
     width: 80,
     align: 'center',
-    key: 'endData',
-    dataIndex: 'endData',
-    scopedSlots: { customRender: 'endData' }
+    key: 'endDate',
+    dataIndex: 'endDate',
+    customRender: (value) => {
+      var d = ''
+      if(value){
+        d = moment(value).format('YYYY-MM-DD')
+      }
+      return  {
+        children: d,
+        attrs: {}
+      }
+    }
   },
   {
     title: '任务状态',
@@ -65,7 +85,40 @@ const columns = [
     align: 'center',
     key: 'status',
     dataIndex: 'status',
-    scopedSlots: { customRender: 'status' }
+    customRender: (value, row, index) => {
+        var desc = ''
+        console.log(value)
+        switch (value) {
+          case 0:
+            desc = '未分配'
+            break
+          case 1:
+            desc = '已分配'
+            break
+          case 2:
+            desc = '已接受'
+            break
+          case 3:
+            desc = '已拒绝'
+            break
+          case 4:
+            desc = '审核中'
+            break
+          case 5:
+            desc = '审核未通过'
+            break
+          case 6:
+            desc = '审核通过'
+            break
+          case 7:
+            desc = '已完成'
+            break
+        }
+        return  {
+          children: desc,
+          attrs: {},
+        }
+    }
   },
   {
     title: '操作',
@@ -77,10 +130,45 @@ const columns = [
   }
 ]
 
-var data = [{ name: '【 安装部分 】 任务已完成，请审核！' }]
+//对象转字符串
+function ObjectToString(obj) {
+  var type = Object.prototype.toString.call(obj)
+  var result = ''
+  if (type === '[object Object]') {
+    result += '{'
+    for (var o in obj) {
+      if (Object.prototype.toString.call(obj[o]) === '[object String]') {
+        result += o + ': "' + obj[o] + '",'
+      } else {
+        result += o + ': ' + obj[o] + ','
+      }
+    }
+    result += '}'
+  }
+  return result
+}
+//数组转字符串
+function ArrayToString(obj) {
+  var type = Object.prototype.toString.call(obj)
+  var result = ''
+  if (type === '[object Array]') {
+    result = '['
+    obj.forEach(ele => {
+      result += ObjectToString(ele)
+    })
+    result += ']'
+  } else if (type === '[object Object]') {
+    result += ObjectToString(obj)
+  }
+  return result
+}
 
 export default {
   name: 'TaskReceive',
+  components: {
+    TaskSubmit,
+    TaskReview
+  },
   props: {
     tapType: {
       type: Number,
@@ -89,110 +177,115 @@ export default {
   },
   data() {
     return {
+      openSubmit: false,
+      openReview: false,
       columns,
-      data,
       taskType: this.tapType,
       //   pagination: this.pager(),
+      current: [],
       pagination: {},
       pageSizeOptions: ['10', '20', '30'],
       currentPageSize: 10,
       defaultCurrent: 1,
       total: 20,
-      user: {}
+      user: {},
+      currentTask: {}
     }
   },
-  // apollo: {
-  //   user: {
-  //     query: gql`
-  //       query {
-  //         departmentsConnection {
-  //           aggregate {
-  //             count
-  //           }
-  //         }
-  //         departments(where: {}) {
-  //           id
-  //           name
-  //           employees {
-  //             id
-  //             name
-  //           }
-  //         }
-  //       }
-  //     `
-  //   }
-  //   // users: {
-  //   //   // GraphQL 查询
-  //   //   query: gql`
-  //   //     query users($skip: Int!, $pageSize: Int!) {
-  //   //       users(where: {}, skip: $skip, first: $pageSize) {
-  //   //         id
-  //   //         name
-  //   //       }
-  //   //     }
-  //   //   `,
-  //   //   // 初始变量
-  //   //   variables: {
-  //   //     skip: 0,
-  //   //     pageSize: 2,
-  //   //     hasMore: false
-  //   //   }
-  //   // }
-  // },
   created() {
     console.log(this.taskType, 'type')
-
-    setTimeout(() => {
-      //   this.loading = !this.loading
-      this.pagination = this.pager()
-    }, 100)
+    this.loading = true
+    this.loadList()
   },
   methods: {
     init() {
       console.log(this.taskType)
     },
-
-    getData() {
+    //接口获取数据
+    loadList() {
+      const _this = this
+      const skip = (this.defaultCurrent -1) * this.currentPageSize
       this.$apollo
         .query({
           query: gql`
-            query departments($skip: Int!, $pageSize: Int!){
-              departmentsConnection {
+            query getTasks($skip: Int!, $pageSize: Int!)  {
+              tasksConnection (where: { handler: { id: "cjr66m91v00to07359nnkrjmu" }, type_in: [0, 1, 2, 3], status_gt: 0 }) {
                 aggregate {
                   count
                 }
               }
-              departments(where: {}, skip: $skip, first: $pageSize) {
+
+              tasks(
+                where: { handler: { id: "cjr66m91v00to07359nnkrjmu" }, type_in: [0, 1, 2, 3], status_gt: 0 }, skip: $skip, first: $pageSize
+              ) {
                 id
+                handler {
+                  id
+                  name
+                }
+                type
+                step
                 name
-                employees {
+                remark
+                submitAmount
+                approvedAmount
+                status
+                endDate
+                createdBy {
+                  id
+                  name
+                }
+                createdAt
+                project {
+                  id
+                  name
+                }
+                parentNode {
                   id
                   name
                 }
               }
             }
           `,
-          // 初始变量
           variables: {
-            skip: 6,
-            pageSize: 2,
-            hasMore: false
-          }
+            skip: parseInt(skip),
+            pageSize: parseInt(this.currentPageSize),
+          },
+          fetchPolicy: 'network-only'
         })
         .then(res => {
-          console.log(res, 'res')
+          console.log(res,'res')
+          _this.total = res.data.tasksConnection.aggregate.count
+          _this.current = res.data.tasks
+          _this.pagination = _this.pager()
+          _this.loading = res.loading
         })
         .catch(err => {
-          console.log(err, 'err')
+          console.log(err)
+          _this.total = 0
+          _this.defaultCurrent = 1
+          _this.current = []
+          _this.pagination = _this.pager()
+          _this.loading = false
         })
     },
-
+    onPagerChange(page, pageSize) {
+      this.defaultCurrent = page
+      this.currentPageSize = pageSize
+      this.loading = true
+      this.loadList()
+    },
+    onPagerSizeChange(current, size) {
+      this.defaultCurrent = current
+      this.currentPageSize = size
+      this.loading = true
+      this.loadList()
+    },
     pager() {
       return {
         total: this.total,
         showTotal: total => `共有 ${total} 条`,
         showSizeChanger: true,
-        showQuickJumper: true,
         pageSizeOptions: this.pageSizeOptions,
         pageSize: this.currentPageSize,
         defaultCurrent: this.defaultCurrent,
@@ -200,23 +293,224 @@ export default {
         onShowSizeChange: this.onPagerSizeChange
       }
     },
-    onPagerChange(page, pageSize) {
-      this.defaultCurrent = page
-      //   this.pageSize = pageSize
-      // console.log(page, pageSize,'changePager')
-      //   this.loadData({ pageNum: page })
+    acceptTask(record) {
+      const _this = this
+      this.$confirm({
+        title: '接受任务',
+        content: `你确定接受任务【${record.name}】吗？`,
+        onOk() {
+          console.log('接受任务', record)
+          _this.updateTaskStatus(record, 2)
+        },
+        onCancel() {
+        }
+      })
     },
-    onPagerSizeChange(current, size) {
-      // console.log(current, size,'changeSize');
-      this.defaultCurrent = current
-      //   this.pageSize = size
-      //   this.loadData({ pageSize: size })
+    rejectTask(record) {
+      const _this = this
+      this.$confirm({
+        title: '拒绝任务',
+        content: `你确定拒绝任务【${record.name}】吗？`,
+        onOk() {
+          console.log('拒绝任务', record)
+          _this.updateTaskStatus(record, 3)
+        },
+        onCancel() {
+        }
+      })
+    },
+    finishTask(record) {
+      const _this = this
+      this.$confirm({
+        title: '完成任务',
+        content: `你确定完成任务【${record.name}】吗？`,
+        onOk() {
+          console.log('完成任务', record)
+          _this.updateTaskStatus(record, 7)
+        },
+        onCancel() {
+        }
+      })
+    },
+    commentTask(record) {
+      console.log(record.comments)
+    },
+    submitTask(record) {
+      console.log(record)
+      this.currentTask = record
+      this.openSubmit = true
+    },
+    reviewTask(record) {
+      console.log(record)
+      this.currentTask = record
+      this.openReview = true
+    },
+    goProject(record) {
+      console.log(record)
+      alert(`${record.project.id}, ${record.project.name}`)
+    },
+    taskRemark(record){
+      alert(record.remark)
+    },
+    submitSave(data) {
+      if(data){
+        const _this = this
+        this.$apollo
+          .mutate({
+            mutation: gql`
+            mutation {
+              updateTask(data: { status: 4 }, where: { id: "${_this.currentTask.id}" }) {
+                id
+              }
+
+              createTask(
+                data: {
+                  project: { connect: { id: "${_this.currentTask.project.id}" } }
+                  parentNode: { connect: { id: "${_this.currentTask.id}" } }
+                  type: ${data.type}
+                  handler: { connect: { id: "${data.handler.id}" } }
+                  name: "【${_this.currentTask.parentNode.name}】${_this.currentTask.name}"
+                  step: ${data.step}
+                  submitAmount: ${data.submitAmount}
+                  approvedAmount: ${data.approvedAmount}
+                  unitPrice: ${data.unitPrice}
+                  remark: "${data.remark}"
+                  status: 4
+                  reviewResult: -1
+                }
+              ) {
+                id
+              }
+            }
+          `
+          })
+          .then(res => {
+            console.log(res,'updateTaskStatus')
+            _this.currentTask.status = 4
+            _this.openSubmit = false
+          }).catch(err => {
+          console.log(err, 'err')
+        })
+      }
+    },
+    submitCancel(){
+      this.openSubmit = false
+    },
+    reviewSave(data) {
+      if(data){
+        const _this = this
+        this.$apollo
+          .mutate({
+            mutation: gql`
+            mutation {
+              updateTask(data: { status: 4 }, where: { id: "${_this.currentTask.id}" }) {
+                id
+              }
+
+              createTask(
+                data: {
+                  project: { connect: { id: "${_this.currentTask.project.id}" } }
+                  parentNode: { connect: { id: "${_this.currentTask.id}" } }
+                  type: ${data.type}
+                  handler: { connect: { id: "${data.handler.id}" } }
+                  name: "【${_this.currentTask.project.name}】${_this.currentTask.name}"
+                  step: ${data.step}
+                  submitAmount: ${data.submitAmount}
+                  approvedAmount: ${data.approvedAmount}
+                  unitPrice: ${data.unitPrice}
+                  remark: "${data.remark}"
+                  status: 4
+                  reviewResult: -1
+                }
+              ) {
+                id
+              }
+            }
+          `
+          })
+          .then(res => {
+            console.log(res,'updateTaskStatus')
+            _this.currentTask.status = 4
+            this.openReview = false
+          }).catch(err => {
+          console.log(err, 'err')
+        })
+      }
+    },
+    reviewCancel(){
+      this.openReview = false
+    },
+    updateTaskStatus(record, status){
+      record.status = status
+      let notification = ''
+      let recipients = []
+      switch (status){
+        case 2: //接受
+          notification = `【${record.handler.name}】接受了【${record.project.name}】项目中的【${record.name}】任务`
+          recipients = [record.createdBy.id]
+          break
+        case 3: //拒绝
+          notification = `【${record.handler.name}】拒绝了【${record.project.name}】项目中的【${record.name}】任务`
+          recipients = [record.createdBy.id]
+          break
+        case 5: //审核通过
+          if(record.type === 2){ //任务审核
+            notification = `【${record.handler.name}】审核通过了【${record.project.name}】项目中的【${record.name}】任务，审核意见为【${record.reviewComment}】`
+            recipients = [record.createdBy.id]
+          }else{ //项目多级复核
+            notification = `【${record.handler.name}】拒绝了【${record.project.name}】项目中的【[多]${record.name}】任务`
+            recipients = [record.createdBy.id]
+          }
+          break
+        case 6: //审核不通过
+          if(record.type === 2){ //任务审核
+            notification = `【${record.handler.name}】审核未通过了【${record.project.name}】项目中的【${record.name}】任务，审核意见为【${record.reviewComment}】`
+            recipients = [record.createdBy.id]
+          }else{ //项目多级复核
+            notification = `【${record.handler.name}】拒绝了【${record.project.name}】项目中的【[多]${record.name}】任务`
+            recipients = [record.createdBy.id]
+          }
+          break
+      }
+
+      this.$apollo
+        .mutate({
+          mutation: gql`
+            mutation {
+              updateTask(
+                data: {
+                  status: ${status}
+                }
+                where: { id: "${record.id}" }
+              ) {
+                id
+              }
+
+              createNotification(
+                data: {
+                  type: 3
+                  name: "${notification}"
+                  status: 0
+                  recipients: { connect: ${ArrayToString(recipients)} }
+                }
+              ) {
+                id
+              }
+            }
+          `
+        })
+        .then(res => {
+          console.log(res,'updateTaskStatus')
+        }).catch(err => {
+          console.log(err, 'err')
+      })
     }
   },
   watch: {
     tapType(newT, oldT) {
       // var that = this
-      this.getData()
+      // this.
+      // getData()
       // console.log(this.$apollo, 'use')
       console.log(this)
       this.taskType = newT
