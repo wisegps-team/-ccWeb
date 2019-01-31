@@ -132,6 +132,8 @@ import TwoStepCaptcha from '@/components/tools/TwoStepCaptcha'
 import { mapActions } from 'vuex'
 import { timeFix } from '@/utils/util'
 
+import gql from 'graphql-tag'
+
 export default {
   components: {
     TwoStepCaptcha
@@ -218,10 +220,46 @@ export default {
 
       that.loginBtn = true
 
+
+
+
+
+    //  that.$apollo.query({
+    //     query: gql`query {
+    //       employees(where:{username:"${loginParams.username}",password:"${loginParams.password}"}){
+    //         id
+    //         name
+    //         password
+    //         username
+    //         headPortrail
+    //         sex
+    //         mobile
+    //         email
+    //         job
+    //         title
+    //         major
+    //         createdBy
+    //         createdAt
+    //         updatedBy
+    //         updatedAt
+    //         department {
+    //           id
+    //           name
+    //         }
+    //       }
+    //     }
+    //     `
+    //   }).then(response => {console.log(response,'employeees')})
+      loginParams.$apollo = this.$apollo
       that
         .Login(loginParams)
-        .then(() => {
+        .then((res) => {
           // if (that.requiredTwoStepCaptcha) {
+            if(res){
+              that.requestFailed({response:{data:{message:'密码或账号错误'}}})
+              return
+            }
+            
             that.stepCaptchaVisible = true
           // } else {
             that.loginSuccess()

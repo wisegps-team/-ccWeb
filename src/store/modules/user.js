@@ -1,7 +1,11 @@
 import Vue from 'vue'
+// import VueApollo from 'vue-apollo'
 import { login, getInfo, logout } from '@/api/login'
 import { ACCESS_TOKEN } from '@/store/mutation-types'
 import { welcome } from '@/utils/util'
+
+// Vue.use(VueApollo)
+import gql from 'graphql-tag'
 
 const user = {
   state: {
@@ -18,6 +22,7 @@ const user = {
       state.token = token
     },
     SET_NAME: (state, { name, welcome }) => {
+      
       state.name = name
       state.welcome = welcome
     },
@@ -35,10 +40,59 @@ const user = {
   actions: {
     // 登录
     Login({ commit }, userInfo) {
+      console.log(Vue.prototype,Vue.__proto__,'vueeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
+      
+      return new Promise((resolve, reject) => {
+        userInfo.$apollo.query({
+          query: gql`query {
+            employees(where:{username:"${userInfo.username}",password:"${userInfo.password}"}){
+              id
+              name
+              password
+              username
+              headPortrail
+              sex
+              mobile
+              email
+              job
+              title
+              major
+              createdBy
+              createdAt
+              updatedBy
+              updatedAt
+              department {
+                id
+                name
+              }
+            }
+          }
+          `
+        }).then(response => {
+          const result = response.data.employees[0]
+          if(result){
+            Vue.ls.set(ACCESS_TOKEN, result.token || 'tesktoken', 7 * 24 * 60 * 60 * 1000) //设置token 时间
+            Vue.ls.set('account_',userInfo.username)
+            Vue.ls.set('password_',userInfo.password)
+            console.log(result.token)
+            commit('SET_TOKEN', result.token || 'tesktoken')
+            commit('SET_INFO',result)
+            Vue.ls.set('info',JSON.stringify(result))
+            resolve()
+          }else {
+            resolve(true)
+          }
+        }).catch(error => {
+          reject(error)
+        })
+      })
+  
+      // debugger
       return new Promise((resolve, reject) => {
         login(userInfo).then(response => {
           const result = response.result
-          Vue.ls.set(ACCESS_TOKEN, result.token, 7 * 24 * 60 * 60 * 1000)
+          Vue.ls.set(ACCESS_TOKEN, result.token, 7 * 24 * 60 * 60 * 1000) //设置token 时间
+          console.log(result.token)
           commit('SET_TOKEN', result.token)
           resolve()
         }).catch(error => {
@@ -50,6 +104,13 @@ const user = {
     // 获取用户信息
     GetInfo({ commit }) {
       return new Promise((resolve, reject) => {
+        var userInfo = {
+          username:Vue.ls.get('account_'),
+          password:Vue.ls.get('password_')
+        }
+       
+
+
         getInfo().then(response => {
           const result = response.result
 
@@ -77,6 +138,14 @@ const user = {
           reject(error)
         })
       })
+    },
+
+    GetInfos({commit}){
+      var info = JSON.parse(Vue.ls.get('info'))
+      // debugger
+      commit('SET_NAME', { name: info.name, welcome: welcome() })
+      commit('SET_AVATAR', info.avatar)
+      commit('SET_INFO', info)
     },
 
     // 登出

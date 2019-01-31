@@ -36,30 +36,50 @@ function hasRole(roles, route) {
     return true
   }
 }
+//页面权限获取
+// function filterAsyncRouter(routerMap, roles) {
+//   const accessedRouters = routerMap.filter(route => {
+//     if (hasPermission(roles.permissionList, route)) {
+//       if (route.children && route.children.length) {
+//         // debugger;
+//         route.children = filterAsyncRouter(route.children, roles)
+//       }
+//       return true
+//     }
+//     return false
+//   })
+//   return accessedRouters
+// }
 
 function filterAsyncRouter(routerMap, roles) {
   const accessedRouters = routerMap.filter(route => {
-    if (hasPermission(roles.permissionList, route)) {
+    // if (hasPermission(roles.permissionList, route)) {
       if (route.children && route.children.length) {
         // debugger;
         route.children = filterAsyncRouter(route.children, roles)
       }
       return true
-    }
-    return false
+    // }
+    // return false
   })
   return accessedRouters
 }
 
+
+
 const permission = {
   state: {
     routers: constantRouterMap,
-    addRouters: []
+    addRouters: [],
+    isAddRoute:false,
   },
   mutations: {
     SET_ROUTERS: (state, routers) => {
       state.addRouters = routers
       state.routers = constantRouterMap.concat(routers)
+    },
+    SET_ISADD: (state) => {
+      state.isAddRoute= true
     }
   },
   actions: {
@@ -70,6 +90,13 @@ const permission = {
         commit('SET_ROUTERS', accessedRouters)
         resolve()
       })
+    },
+    IsSetRoute({commit}){
+      return new Promise(resolve => {
+        commit('SET_ISADD')
+        resolve()
+      })
+      
     }
   }
 }

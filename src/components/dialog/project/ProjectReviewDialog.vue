@@ -22,43 +22,45 @@
                     optionFilterProp="children"
                     v-model="name"
                     style="width: 470px"
+                   
                   >
-                    <a-select-option value="初稿">初稿</a-select-option>
-                    <a-select-option value="二稿">二稿</a-select-option>
+                    <!-- <a-select-option value="初稿">初稿</a-select-option>
+                    <a-select-option value="二稿">二稿</a-select-option> -->
                     <a-select-option value="成果审核">成果审核</a-select-option>
                   </a-select>
                 </td>
               </tr>
               <tr>
+                
+                <!-- <td class="ui-radio_group" style="width: 160px">
+                  <a-radio-group name="radioGroup" :defaultValue="1">
+                    <a-radio :value="1">同意</a-radio>
+                    <a-radio :value="0">不同意</a-radio>
+                  </a-radio-group>
+                </td> -->
                 <th width="80">审核阶段：</th>
                 <td>
-                  <a-select v-model="step" style="width: 120px">
+                  <a-select v-model="step" style="width: 120px" disabled>
                     <a-select-option value="0">一级审核</a-select-option>
                     <a-select-option value="1">二级审核</a-select-option>
                     <a-select-option value="2">三级审核</a-select-option>
                     <a-select-option value="3">一般审核</a-select-option>
                   </a-select>
                 </td>
-                <th width="80">
-                  <label class="ant-form-item-required">审核人：</label>
-                </th>
-                <td width="230">
-                  <a-input
-                    type="text"
-                    v-model="handler.name"
-                    placeholders
-                    readonly
-                    maxlength="200"
-                    v-decorator="[
-                      'name',
-                      {rules: [{ required: true, message: '请选择审核人!' }]}
-                    ]"
-                    @click="showEModal(1, 1, true)"
-                  />
-                  <!--ms-if-->
+                <th width="80">审核人：</th>
+                <td>
+                    <a-input  
+                      type="text"
+                      v-model="NextHandler.name"
+                      placeholder="通知到"
+                      readonly
+                      maxlength="200" 
+                      @click="showEModal(1,1,false)"
+                    />
                 </td>
               </tr>
               <tr>
+                
                 <th>通知到：</th>
                 <td colspan="3">
                   <a-input
@@ -67,7 +69,7 @@
                     placeholder="通知到"
                     readonly
                     maxlength="200"
-                    @click="showEModal(1, 2, false)"
+                    @click="showEModal(1, 2, true)"
                   />
                 </td>
               </tr>
@@ -101,12 +103,6 @@
                 </td>
               </tr>
               <tr>
-                <th class="th-top">描述：</th>
-                <td colspan="3">
-                  <a-textarea v-model="remark" style="width:470px" rows="3" placeholder="审核纪要"></a-textarea>
-                </td>
-              </tr>
-              <tr>
                 <th class="th-top">附件：</th>
                 <td colspan="3">
                   <a-upload name="file" :multiple="true" action="//jsonplaceholder.typicode.com/posts/"
@@ -118,6 +114,35 @@
                   </a-upload>
                 </td>
               </tr>
+              <tr class="nextTrClass">
+                <th class="th-top">描述：</th>
+                <td colspan="3">
+                  <a-textarea v-model="reviewComment" style="width:470px" rows="3" placeholder="审核意见"></a-textarea>
+                </td>
+              </tr>
+              <!-- <tr id="nextTr" :class="isShowNextReview ? showNextReview : hideNextReview">
+                <th width="80">下一阶段：</th>
+                <td>
+                  <a-select v-model="NextStep" style="width: 120px" disabled>
+                    <a-select-option value="0">一级审核</a-select-option>
+                    <a-select-option value="1">二级审核</a-select-option>
+                    <a-select-option value="2">三级审核</a-select-option>
+                  </a-select>
+                </td>
+                <th width="80">
+                  <label class="ant-form-item-required">审核人：</label>
+                </th>
+                <td width="230">
+                  <a-input
+                    type="text"
+                    v-model="NextHandler.name"
+                    placeholder
+                    readonly
+                    maxlength="200"
+                    @click="showEModal(1, 1, true)"
+                  />
+                </td>
+              </tr> -->
             </tbody>
           </table>
         </a-col>
@@ -152,6 +177,10 @@
       maskClosable: {
         type: Boolean,
         default: false
+      },
+      currentTask: {
+        type: Object,
+        default: null
       }
     },
     components: {
@@ -159,22 +188,30 @@
     },
     data() {
       return {
+        showNextReview: 'showNextReview',
+        hideNextReview: 'hideNextReview',
         visible: false,
         visibled: this.initvisibled,
+        isShowNextReview: false,
         employeeType: 1, //1显示员工 2只显示部门
         subType: 1,     //1：负责人 2：通知到
         isOne: true,     //true: 只选一个 false: 可以多选
         emTitle: '添加人员',
         name: '成果审核', //审核主题
         step: '0',  //审核阶段
-        type: 2, //任务审核任务
+        type: 1, //任务审核任务
         sendTo: [], //通知到的人
         sendDesc: '',
         handler: {}, //审核人id
         submitAmount: 0, //送审金额
         approvedAmount: 0, //审定金额
         unitPrice: 0, //单方造价
-        remark: '', //审核纪要
+        remark: 0, //审核纪要
+        reviewResult: 0, //审核结果 -1：未审核 0:不同意 1:同意
+        reviewComment: '',                    //审核意见
+        reviewDate: new Date(),               //审核日期
+        NextStep: '1',                        //下级审核阶段
+        NextHandler: {},                      //下级审核人
         files: [] //上传文件
       }
     },
@@ -185,11 +222,13 @@
     },
     methods: {
       handleOk() {
-        debugger
-        this.$emit('submitSave2', this)
+        this.$emit('reviewSave', this)
       },
       handleCancel() {
-        this.$emit('submitCancel')
+        this.$emit('reviewCancel')
+      },
+      toNextReviewer (e) {
+        console.log(`checked = ${e.target.checked}`)
       },
       //显示人员或部门弹框
       showEModal(type, subType, isOne) {
@@ -211,8 +250,8 @@
           return
         }
         if (this.subType === 1) {
-          this.handler.id = obj.data[0].key
-          this.handler.name = obj.data[0].title
+          this.NextHandler.id = obj.data[0].key
+          this.NextHandler.name = obj.data[0].title
           //员工
         } else {
           this.sendTo = obj.data
@@ -238,6 +277,20 @@
       initvisibled(newT, oldT) {
         console.log(newT, oldT, '-------')
         this.visibled = newT
+      },
+      currentTask: function(task) {
+        // alert('currentTask change')
+        // 设置审核任务的信息
+        if(this.currentTask){
+          this.name = task.name
+          this.step = task.step.toString()
+          this.type = task.type
+          this.submitAmount = task.submitAmount
+          this.approvedAmount = task.approvedAmount
+          this.unitPrice = task.unitPrice
+          this.nextStep = (task.step + 1).toString()
+          this.reviewResult = task.reviewResult
+        }
       }
     }
   }
@@ -265,6 +318,14 @@
 
   .add-task_dialog th {
     text-align: right;
+  }
+
+  .showNextReview {
+    display: table-row;
+  }
+
+  .hideNextReview {
+    display: none;
   }
 </style>
 

@@ -28,25 +28,25 @@ const columns = [
 const data = [
   {
     key: 1,
-    name: 'John Brown',
+    name: '安全文明评价表及安全评分考核表 ',
     age: 32,
     property: 0,
-    show: true,
+    show: false,
     address: 'New York No. 1 Lake Park',
     description: 'My name is John Brown, I am 32 years old, living in New York No. 1 Lake Park.',
     children: [
       {
         key: 11,
-        name: 'John Brown2',
+        name: '会议记录',
         age: 32,
         property: 0,
-        show: true,
+        show: false,
         address: 'New York No. 1 Lake Park',
         description: 'My name is John Brown, I am 32 years old, living in New York No. 1 Lake Park.',
         children: [
           {
             key: 12,
-            name: 'John Brown3',
+            name: '基本资料',
             property: 1,
             age: 32,
             address: 'New York No. 1 Lake Park',
@@ -54,7 +54,7 @@ const data = [
           },
           {
             key: 13,
-            name: 'John Brown34',
+            name: '施工图',
             property: 1,
             age: 32,
             address: 'New York No. 1 Lake Park',
@@ -64,7 +64,7 @@ const data = [
       },
       {
         key: 122,
-        name: 'John Brown3',
+        name: '现场收方单',
         property: 1,
         age: 32,
         address: 'New York No. 1 Lake Park',
@@ -74,7 +74,7 @@ const data = [
   },
   {
     key: 2,
-    name: 'Jim Green',
+    name: '材料认质认价单',
     age: 42,
     property: 0,
     // show: true,
@@ -83,7 +83,7 @@ const data = [
   },
   {
     key: 3,
-    name: 'Joe Black',
+    name: '工程师计算底稿 ',
     age: 32,
     property: 0,
     // show: true,
@@ -157,7 +157,7 @@ export default {
                       style="max-width:300px;margin-left:15px;display: inline-block;line-height: 18px;position: relative;top: 3px;"
                       class="ellips"
                     >
-                      {item.name}11111111111111111111111111111111111fffffffffffffffddddddddddddd
+                      {item.name}.word
                     </a>
                   </span>
                 </a-col>

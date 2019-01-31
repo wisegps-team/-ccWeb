@@ -268,6 +268,11 @@ import moment from 'moment'
 
 import employeeTree from '@/components/same/employeeTree'
 
+import {
+		mapState,
+		mapMutations
+	} from 'vuex'
+
 const columns = [
   {
     title: '计划项',
@@ -397,6 +402,11 @@ export default {
   },
   components: {
     employeeTree
+  },
+  computed: {
+    ...mapState({
+      userInfo: state => state.user.info
+    })
   },
   created() {
     this.loadData(this.projectId)
@@ -542,7 +552,7 @@ export default {
             updateProject(
               data: {
                 principal: "${_this.principal.name}"
-                summarys: { create: { content: "修改了项目负责人为【${_this.principal.name}】", createdBy: "吴立新" } }
+                summarys: { create: { content: "修改了项目负责人为【${_this.principal.name}】", createdBy: "${_this.userInfo.name}" } }
               }
               where: { id: "${_this.projectId}" }
             ) {

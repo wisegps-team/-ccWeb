@@ -22,7 +22,7 @@
         </a-table>
       </a-col>
     </a-row>
-    <TaskSubmit inititle="提交审核" :initvisibled="openSubmit" @submitSave="submitSave" @submitCancel="submitCancel"/>
+    <TaskSubmit inititle="提交审核" :initvisibled="openSubmit" @submitSave2="submitSave" @submitCancel="submitCancel"/>
     <TaskReview inititle="审核" :initvisibled="openReview" @reviewSave="reviewSave" @reviewCancel="reviewCancel" :currentTask="currentTask"/>
   </div>
 </template>
@@ -244,6 +244,10 @@ export default {
                   id
                   name
                 }
+                numParentNode {
+                  id
+                  name
+                }
               }
             }
           `,
@@ -353,6 +357,7 @@ export default {
       alert(record.remark)
     },
     submitSave(data) {
+      console.log(data)
       if(data){
         const _this = this
         this.$apollo
@@ -369,7 +374,7 @@ export default {
                     parentNode: { connect: { id: "${_this.currentTask.id}" } }
                     type: ${data.type}
                     handler: { connect: { id: "${data.handler.id}" } }
-                    name: "【${_this.currentTask.parentNode.name}】${_this.currentTask.name}"
+                    name: "【${_this.currentTask.type == 0 ?_this.currentTask.parentNode.name: _this.currentTask.numParentNode.name}】${_this.currentTask.name}"
                     step: ${data.step}
                     submitAmount: ${data.submitAmount}
                     approvedAmount: ${data.approvedAmount}
@@ -422,7 +427,7 @@ export default {
                   }
 
                   # 更新父任务的状态为审核通过/不通过
-                  udpateTask2:updateTask(
+                  ${_this.currentTask.parentNode ?`udpateTask2:updateTask(
                     data: {
                       status: ${status}
                     }, where: {
@@ -430,13 +435,13 @@ export default {
                     }
                   ) {
                     id
-                  }
+                  }`:''}
 
                   # 新增下一级审核任务
                   createTask(
                     data: {
                       project: { connect: { id: "${_this.currentTask.project.id}" } }
-                      parentNode: { connect: { id: "${_this.currentTask.parentNode.id}" } }
+                      ${_this.currentTask.parentNode?`parentNode: { connect: { id: "${_this.currentTask.parentNode.id}" } }`:''}
                       type: ${data.type}
                       handler: { connect: { id: "${data.nextHandler.id}" } }
                       name: "${_this.currentTask.name}"
@@ -483,9 +488,9 @@ export default {
                   }
 
                   # 更新父任务的状态为审核通过/不通过
-                  updateTask2:updateTask(data: { status: ${status} }, where: { id: "${_this.currentTask.parentNode.id}" }) {
+                 ${_this.currentTask.parentNode ? `updateTask2:updateTask(data: { status: ${status} }, where: { id: "${_this.currentTask.parentNode.id}" }) {
                     id
-                  }
+                  }`:''} 
                 }
               `
             })

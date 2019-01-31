@@ -78,9 +78,10 @@ const apolloProvider = new VueApollo({
   defaultClient: apolloClient
 })
 
+// exports.apolloProvider = apolloProvider
 
-
-
+// debugger
+// console.log(apolloProvider,'providerapploooooooo')
 
 
 
