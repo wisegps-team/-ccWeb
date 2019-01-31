@@ -199,7 +199,7 @@
               <a-icon type="share-alt" title="分配"/>
             </a>
           </span>
-          <span v-else-if="record.parentNode" >
+          <span v-else-if="record.parentNode">
             <a @click="saveRow(record)" style="padding:5px">
               <a-icon type="save" title="保存"/>
             </a>
@@ -210,9 +210,13 @@
             <!-- <a-divider type="vertical"/> -->
             <!-- <a @click="addChild(record,index)">
               <a-icon type="down-circle" title="创建子任务"/>
-            </a> -->
+            </a>-->
             <!-- <a-divider type="vertical"/> -->
-            <a @click="shareTask(record,index)" v-if="record.handler && record.status == 0" style="padding:5px">
+            <a
+              @click="shareTask(record,index)"
+              v-if="record.handler && record.status == 0"
+              style="padding:5px"
+            >
               <a-icon type="share-alt" title="分配"/>
             </a>
           </span>
@@ -242,10 +246,7 @@
 import gql from 'graphql-tag'
 import employeeTree from '@/components/same/employeeTree'
 
-import {
-		mapState,
-		mapMutations
-	} from 'vuex'
+import { mapState, mapMutations } from 'vuex'
 
 //对象转字符串
 function ObjectToString(obj) {
@@ -295,7 +296,7 @@ export default {
   data() {
     return {
       costName: '初稿',
-      projectName:'',
+      projectName: '',
       scrollX: 1200,
       emTitle: '', //人员弹框标题
       visibled: false, //人员弹框是否显示
@@ -424,7 +425,7 @@ export default {
   },
   created() {
     this.loadData(this.projectId)
-    console.log(this.userInfo.id,'info')
+    console.log(this.userInfo.id, 'info')
     // console.log(this.$apollo)
   },
   computed: {
@@ -549,7 +550,7 @@ export default {
     //初始化数据
     initInfo(data) {
       console.log(data)
-      if(!data.length){
+      if (!data.length) {
         return
       }
       this.projectName = data[0].name
@@ -566,7 +567,8 @@ export default {
           if (ele.title == '造价金额') {
             draftObj = ele
             draftIndex = index
-            ele.children = [{
+            ele.children = [
+              {
                 dataIndex: 'numTasks',
                 key: 'numTasks1',
                 width: '100',
@@ -577,12 +579,11 @@ export default {
                 scopedSlots: { customRender: 'numTasks1' }
               }
             ]
-            
           }
         })
         var obj = { 1: '初稿', 2: '二稿', 3: '三稿', 4: '四稿', 5: '五稿', 6: '六稿', 7: '终稿' }
         var draftCL = draftObj['children'] //造价金额子表头
-      
+
         draftCL[0].title = obj[1] //默认初稿添加
 
         if (this.docNum == this.enEditCost.length) {
@@ -648,7 +649,7 @@ export default {
           type: 1,
           project: { connect: { id: this.projectId } },
           submitAmount: parseFloat(ele.submitAmount || 0),
-          createdBy: {connect: {id: this.userInfo.id}}
+          createdBy: { connect: { id: this.userInfo.id } }
         }
         numTasks.push(obj)
       })
@@ -674,9 +675,9 @@ export default {
           `
           })
           .then(res => {
-            console.log(res,'update handler')
+            console.log(res, 'update handler')
             if (needNum.length) {
-              needNum.forEach((ele,numI) => {
+              needNum.forEach((ele, numI) => {
                 this.$apollo
                   .mutate({
                     mutation: gql`
@@ -691,8 +692,8 @@ export default {
                     `
                   })
                   .then(res => {
-                    console.log(res,'update childdler')
-                    if(_this.needNum.length == numI +1){
+                    console.log(res, 'update childdler')
+                    if (_this.needNum.length == numI + 1) {
                       _this.loadData(_this.projectId)
                     }
                   })
@@ -834,11 +835,11 @@ export default {
         for (var i = 0; i < this.docNum; i++) {
           var objName = { 1: '初稿', 2: '二稿', 3: '三稿', 4: '四稿', 5: '五稿', 6: '六稿', 7: '终稿' }
           var numTobj = {
-            name: objName[i+1],
+            name: objName[i + 1],
             handler: {},
             project: { id: this.projectId },
             type: 1,
-            status:0,
+            status: 0,
             submitAmount: ''
           }
           // debugger
@@ -853,17 +854,19 @@ export default {
 
     //分配任务
     shareTask(record) {
-      
+      this.$confirm({
+        title: '分配任务',
+        content: `你确定分配任务【${record.name}】吗？`,
+        onOk() {
+          var numT = record.numTasks.filter(ele => ele.status == 0)
+          var _this = this
 
-      var numT = record.numTasks.filter(ele => ele.status == 0)
-      var _this = this
+          console.log(record, 'shareTask', numT)
 
-      console.log(record,"shareTask",numT)
-
-      numT.forEach((ele,i) => {
-         this.$apollo
-          .mutate({
-            mutation: gql`
+          numT.forEach((ele, i) => {
+            this.$apollo
+              .mutate({
+                mutation: gql`
             mutation {
               updateTask(data:{
                 status:1
@@ -881,16 +884,18 @@ export default {
               }
             }
           `
+              })
+              .then(res => {
+                // console.log(res,'update fepei')
+                if (i == numT.length - 1) {
+                  _this.loadData(_this.projectId)
+                }
+              })
+              .catch(err => {})
           })
-          .then(res => {
-            // console.log(res,'update fepei')
-            if(i == numT.length -1){
-              _this.loadData(_this.projectId)
-            }
-          })
-          .catch(err => {})
+        },
+        onCancel() {}
       })
-
     },
 
     //添加稿数
@@ -910,7 +915,6 @@ export default {
       if (draftCLL > 6) {
         return
       }
-      
 
       this.docNum = draftCLL + 1
 
@@ -943,7 +947,7 @@ export default {
                       submitAmount:${parseFloat(0)}
                       project:{connect:{id:"${_this.projectId}"}}
                       numParentNode:{connect:{id:"${ele.id}"}}
-                      ${ele.handler ? `handler:{connect:{id:"${ele.handler.id}"}}`:''}
+                      ${ele.handler ? `handler:{connect:{id:"${ele.handler.id}"}}` : ''}
                       type:1
                       status:0,
                       createdBy: {connect: {id: "${_this.userInfo.id}"}}
@@ -965,7 +969,7 @@ export default {
                                 submitAmount:${parseFloat(e.submitAmount)}
                                 project:{connect:{id:"${_this.projectId}"}}
                                 numParentNode:{connect:{id:"${e.id}"}}
-                                ${e.handler ? `handler:{connect:{id:"${e.handler.id}"}}`:''}
+                                ${e.handler ? `handler:{connect:{id:"${e.handler.id}"}}` : ''}
                                 type:1
                                 status:0
                                 createdBy: {connect: {id: "${_this.userInfo.id}"}}
@@ -1017,7 +1021,7 @@ export default {
           id: obj.data[0].key,
           name: obj.data[0].title
         }
-      }else {
+      } else {
         return
       }
       this.selectRecord.handler = this.handler
@@ -1067,11 +1071,11 @@ export default {
         for (var i = 0; i < this.docNum; i++) {
           var objName = { 1: '初稿', 2: '二稿', 3: '三稿', 4: '四稿', 5: '五稿', 6: '六稿', 7: '终稿' }
           var numTobj = {
-            name: objName[i+1],
+            name: objName[i + 1],
             handler: {},
             project: { id: this.projectId },
             type: 1,
-            status:0,
+            status: 0,
             submitAmount: ''
           }
           // debugger
@@ -1117,32 +1121,34 @@ export default {
         }
       })
 
-      this.tasksData.forEach((ele) => {
-        if(ele.childTasks.length){ //存在子任务
-          ele.childTasks.forEach((tE,ti) => {
-            tE.numTasks.forEach((tcE,tci) => {
+      this.tasksData.forEach(ele => {
+        if (ele.childTasks.length) {
+          //存在子任务
+          ele.childTasks.forEach((tE, ti) => {
+            tE.numTasks.forEach((tcE, tci) => {
               tcE.approvedAmount = 0
-              if(tcE.childTasks.length){ //获取审核后的最后一个审定金额
-                tcE.approvedAmount += tcE.childTasks[tcE.childTasks.length-1].approvedAmount
+              if (tcE.childTasks.length) {
+                //获取审核后的最后一个审定金额
+                tcE.approvedAmount += tcE.childTasks[tcE.childTasks.length - 1].approvedAmount
               }
             })
           })
 
-          ele.numTasks.forEach((nE,ni) => { //父任务稿件审定金额由子任务稿件审定金额的叠加
+          ele.numTasks.forEach((nE, ni) => {
+            //父任务稿件审定金额由子任务稿件审定金额的叠加
             nE.approvedAmount = 0
-            ele.childTasks.forEach((tE,ti) => {
+            ele.childTasks.forEach((tE, ti) => {
               nE.approvedAmount += tE.numTasks[ni].approvedAmount
             })
-
           })
-
-        }else { //不存在子任务
-          ele.numTasks.forEach((nE,ni) => {
+        } else {
+          //不存在子任务
+          ele.numTasks.forEach((nE, ni) => {
             nE.approvedAmount = 0
-            if(nE.childTasks.length){ //获取审核后的最后一个审定金额
-              nE.approvedAmount += nE.childTasks[nE.childTasks.length-1].approvedAmount
+            if (nE.childTasks.length) {
+              //获取审核后的最后一个审定金额
+              nE.approvedAmount += nE.childTasks[nE.childTasks.length - 1].approvedAmount
             }
-            
           })
         }
       })
