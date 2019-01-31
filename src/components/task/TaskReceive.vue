@@ -13,7 +13,7 @@
             <a v-if="(record.type===0||record.type===1)&&record.status===1" class="font-blue" style="margin-right:5px" @click="acceptTask(record)">接受</a>
             <a v-if="(record.type===0||record.type===1)&&record.status===1" class="font-blue" style="margin-right:5px" @click="rejectTask(record)">拒绝</a>
             <a v-if="record.status===2&&record.status===4" class="font-blue" style="margin-right:5px" @click="commentTask(record)">讨论</a>
-            <a v-if="(record.type===0||record.type===1)&&record.status===2" class="font-blue" style="margin-right:5px" @click="submitTask(record)">提交</a>
+            <a v-if="(record.type===0||record.type===1)&&(record.status===2||record.status===5)" class="font-blue" style="margin-right:5px" @click="submitTask(record)">提交</a>
             <a v-if="(record.type===0||record.type===1)&&record.status > 2" class="font-blue" style="margin-right:5px" @click="finishTask(record)">完成</a>
             <a v-if="(record.type===2||record.type===3)&&record.status===4" class="font-blue" style="margin-right:5px" @click="reviewTask(record)">审核</a>
             <a v-if="(record.type===2||record.type===3)&&record.status===4" class="font-blue" style="margin-right:5px" @click="taskRemark(record)">纪要</a>
@@ -358,31 +358,31 @@ export default {
         this.$apollo
           .mutate({
             mutation: gql`
-            mutation {
-              updateTask(data: { status: 4 }, where: { id: "${_this.currentTask.id}" }) {
-                id
-              }
-
-              createTask(
-                data: {
-                  project: { connect: { id: "${_this.currentTask.project.id}" } }
-                  parentNode: { connect: { id: "${_this.currentTask.id}" } }
-                  type: ${data.type}
-                  handler: { connect: { id: "${data.handler.id}" } }
-                  name: "【${_this.currentTask.parentNode.name}】${_this.currentTask.name}"
-                  step: ${data.step}
-                  submitAmount: ${data.submitAmount}
-                  approvedAmount: ${data.approvedAmount}
-                  unitPrice: ${data.unitPrice}
-                  remark: "${data.remark}"
-                  status: 4
-                  reviewResult: -1
+              mutation {
+                updateTask(data: { status: 4 }, where: { id: "${_this.currentTask.id}" }) {
+                  id
                 }
-              ) {
-                id
+
+                createTask(
+                  data: {
+                    project: { connect: { id: "${_this.currentTask.project.id}" } }
+                    parentNode: { connect: { id: "${_this.currentTask.id}" } }
+                    type: ${data.type}
+                    handler: { connect: { id: "${data.handler.id}" } }
+                    name: "【${_this.currentTask.parentNode.name}】${_this.currentTask.name}"
+                    step: ${data.step}
+                    submitAmount: ${data.submitAmount}
+                    approvedAmount: ${data.approvedAmount}
+                    unitPrice: ${data.unitPrice}
+                    remark: "${data.remark}"
+                    status: 4
+                    reviewResult: -1
+                  }
+                ) {
+                  id
+                }
               }
-            }
-          `
+            `
           })
           .then(res => {
             console.log(res,'updateTaskStatus')
@@ -399,42 +399,104 @@ export default {
     reviewSave(data) {
       if(data){
         const _this = this
-        this.$apollo
-          .mutate({
-            mutation: gql`
-            mutation {
-              updateTask(data: { status: 4 }, where: { id: "${_this.currentTask.id}" }) {
-                id
-              }
+        if(data.isShowNextReview){ //发到下一级审核
+          const reviewStatus = data.reviewResult === 1 ? 6: 5
+          const status = data.reviewResult === 1 ? 4: 5
+          this.$apollo
+            .mutate({
+              mutation: gql`
+                mutation {
+                  # 更新审核任务的审核意见为同意或者不同意，状态为审核通过/不通过
+                  updateTask(
+                    data: {
+                      status: ${reviewStatus},
+                      reviewResult: ${data.reviewResult},
+                      reviewComment: "${data.reviewComment}",
+                      reviewDate: "${data.reviewDate}"
+                    },
+                    where: {
+                      id: "${_this.currentTask.id}"
+                    }
+                  ) {
+                    id
+                  }
 
-              createTask(
-                data: {
-                  project: { connect: { id: "${_this.currentTask.project.id}" } }
-                  parentNode: { connect: { id: "${_this.currentTask.id}" } }
-                  type: ${data.type}
-                  handler: { connect: { id: "${data.handler.id}" } }
-                  name: "【${_this.currentTask.project.name}】${_this.currentTask.name}"
-                  step: ${data.step}
-                  submitAmount: ${data.submitAmount}
-                  approvedAmount: ${data.approvedAmount}
-                  unitPrice: ${data.unitPrice}
-                  remark: "${data.remark}"
-                  status: 4
-                  reviewResult: -1
+                  # 更新父任务的状态为审核通过/不通过
+                  udpateTask2:updateTask(
+                    data: {
+                      status: ${status}
+                    }, where: {
+                      id: "${_this.currentTask.parentNode.id}"
+                    }
+                  ) {
+                    id
+                  }
+
+                  # 新增下一级审核任务
+                  createTask(
+                    data: {
+                      project: { connect: { id: "${_this.currentTask.project.id}" } }
+                      parentNode: { connect: { id: "${_this.currentTask.parentNode.id}" } }
+                      type: ${data.type}
+                      handler: { connect: { id: "${data.nextHandler.id}" } }
+                      name: "${_this.currentTask.name}"
+                      step: ${data.nextStep}
+                      submitAmount: ${data.submitAmount}
+                      approvedAmount: ${data.approvedAmount}
+                      unitPrice: ${data.unitPrice || 0}
+                      remark: "${data.remark}"
+                      status: 4
+                      reviewResult: -1
+                    }
+                  ) {
+                    id
+                  }
                 }
-              ) {
-                id
-              }
-            }
-          `
+              `
+            })
+            .then(res => {
+              console.log(res,'updateTaskStatus')
+              _this.currentTask.status = reviewStatus
+              this.openReview = false
+            }).catch(err => {
+            console.log(err, 'err')
           })
-          .then(res => {
-            console.log(res,'updateTaskStatus')
-            _this.currentTask.status = 4
-            this.openReview = false
-          }).catch(err => {
-          console.log(err, 'err')
-        })
+        }else{ //审核结束
+          const status = data.reviewResult === 1 ? 6: 5
+          this.$apollo
+            .mutate({
+              mutation: gql`
+                mutation {
+                  # 更新审核任务的审核意见为同意或者不同意，状态为审核通过/不通过
+                  updateTask(
+                    data: {
+                      status: ${status},
+                      reviewResult: ${data.reviewResult},
+                      reviewComment: "${data.reviewComment}",
+                      reviewDate: "${data.reviewDate}"
+                    },
+                    where: {
+                      id: "${_this.currentTask.id}"
+                    }
+                  ) {
+                    id
+                  }
+
+                  # 更新父任务的状态为审核通过/不通过
+                  updateTask2:updateTask(data: { status: ${status} }, where: { id: "${_this.currentTask.parentNode.id}" }) {
+                    id
+                  }
+                }
+              `
+            })
+            .then(res => {
+              console.log(res,'updateTaskStatus')
+              _this.currentTask.status = status
+              this.openReview = false
+            }).catch(err => {
+            console.log(err, 'err')
+          })
+        }
       }
     },
     reviewCancel(){

@@ -33,7 +33,7 @@
               <tr>
                 <th width="80"></th>
                 <td class="ui-radio_group" style="width: 160px">
-                  <a-radio-group name="radioGroup" :defaultValue="1">
+                  <a-radio-group v-model="reviewResult" name="radioGroup">
                     <a-radio :value="1">同意</a-radio>
                     <a-radio :value="0">不同意</a-radio>
                   </a-radio-group>
@@ -102,7 +102,7 @@
               <tr id="nextTr" :class="isShowNextReview ? showNextReview : hideNextReview">
                 <th width="80">下一阶段：</th>
                 <td>
-                  <a-select v-model="NextStep" style="width: 120px" disabled>
+                  <a-select v-model="nextStep" style="width: 120px" disabled>
                     <a-select-option value="0">一级审核</a-select-option>
                     <a-select-option value="1">二级审核</a-select-option>
                     <a-select-option value="2">三级审核</a-select-option>
@@ -114,7 +114,7 @@
                 <td width="230">
                   <a-input
                     type="text"
-                    v-model="NextHandler.name"
+                    v-model="nextHandler.name"
                     placeholder
                     readonly
                     maxlength="200"
@@ -143,6 +143,7 @@
 <script>
 
   import employeeTree from '@/components/same/employeeTree'
+  import moment from 'moment'
 
   export default {
     props: {
@@ -187,11 +188,11 @@
         approvedAmount: 0, //审定金额
         unitPrice: 0, //单方造价
         remark: 0, //审核纪要
-        reviewResult: 0, //审核结果 -1：未审核 0:不同意 1:同意
+        reviewResult: '-1', //审核结果 -1：未审核 0:不同意 1:同意
         reviewComment: '',                    //审核意见
-        reviewDate: new Date(),               //审核日期
-        NextStep: '1',                        //下级审核阶段
-        NextHandler: {},                      //下级审核人
+        reviewDate: new moment().format(),    //审核日期
+        nextStep: '1',                        //下级审核阶段
+        nextHandler: {},                      //下级审核人
         files: [] //上传文件
       }
     },
@@ -230,8 +231,8 @@
           return
         }
         if (this.subType === 1) {
-          this.NextHandler.id = obj.data[0].key
-          this.NextHandler.name = obj.data[0].title
+          this.nextHandler.id = obj.data[0].key
+          this.nextHandler.name = obj.data[0].title
           //员工
         } else {
           this.sendTo = obj.data
