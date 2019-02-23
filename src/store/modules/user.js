@@ -40,12 +40,12 @@ const user = {
   actions: {
     // 登录
     Login({ commit }, userInfo) {
-      console.log(Vue.prototype,Vue.__proto__,'vueeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
+      console.log(Vue.$apollo,Vue.__proto__,userInfo,'vueeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
       
       return new Promise((resolve, reject) => {
         userInfo.$apollo.query({
           query: gql`query {
-            employees(where:{username:"${userInfo.username}",password:"${userInfo.password}"}){
+            Employee (where:{username:{_eq:"${userInfo.username}"},password:{_eq:"${userInfo.password}"}}){
               id
               name
               password
@@ -57,9 +57,7 @@ const user = {
               job
               title
               major
-              createdBy
               createdAt
-              updatedBy
               updatedAt
               department {
                 id
@@ -69,7 +67,8 @@ const user = {
           }
           `
         }).then(response => {
-          const result = response.data.employees[0]
+          console.log(response,'login get employee')
+          const result = response.data.Employee[0]
           if(result){
             Vue.ls.set(ACCESS_TOKEN, result.token || 'tesktoken', 7 * 24 * 60 * 60 * 1000) //设置token 时间
             Vue.ls.set('account_',userInfo.username)

@@ -52,14 +52,16 @@ import config from '@/defaultSettings'
 const httpLink = new HttpLink({
   // 你需要在这里使用绝对路径
   // uri: 'http://192.168.2.32:4466/'
-  uri:'http://115.159.158.108:4466/'
+  // uri:'http://115.159.158.108:4466/'
+  uri:'http://182.254.214.210:4080/v1alpha1/graphql'
 })
 
 const middlewareLink = new ApolloLink((operation, forward) => {
   const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJpYXQiOjE1NDc3ODg3NzZ9.N__rYip33R9Y749bi3e0v4MR4_ntK9jXxp47nRqWMmY'
   operation.setContext({
     headers: {
-      Authorization: `Bearer ${token}` || null
+      // Authorization: `Bearer ${token}` || null,
+      "x-hasura-access-key": "wicaretest1234"
     }
   })
   return forward(operation)
